@@ -1778,6 +1778,21 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	return SubmitTransaction(ctx, s.b, tx)
 }
 
+// SendRawTransactionConditional
+func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input hexutil.Bytes, knownAccounts types.KnownAccounts) (common.Hash, error) {
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(input); err != nil {
+		return common.Hash{}, err
+	}
+
+	bundleTx := types.NewTx(&types.BundleTx{
+		Inner:         tx,
+		KnownAccounts: knownAccounts,
+	})
+
+	return SubmitTransaction(ctx, s.b, bundleTx)
+}
+
 // Sign calculates an ECDSA signature for:
 // keccak256("\x19Ethereum Signed Message:\n" + len(message) + message).
 //

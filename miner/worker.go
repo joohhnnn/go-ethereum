@@ -898,9 +898,20 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 		if tx == nil {
 			break
 		}
+
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(env.signer, tx)
+
+		if tx.Type() == types.BundleTxType {
+			valid, _ := state.IsValidBundleTransaction(tx, env.state)
+			if !valid {
+				log.Trace("Skipping invalid bundle transaction", "sender", from, "hash", tx.Hash())
+
+				txs.Pop()
+				continue
+			}
+		}
 
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.

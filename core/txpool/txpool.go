@@ -1564,6 +1564,19 @@ func (pool *TxPool) demoteUnexecutables() {
 			}
 			pendingGauge.Dec(int64(len(gapped)))
 		}
+
+		bundleDrops, errs := list.FilterBundles(pool.currentState)
+		if len(errs) != 0 {
+			for _, err := range errs {
+				log.Error("Cannot handle filtering of bundle transaction", "message", err)
+			}
+		}
+		for _, tx := range bundleDrops {
+			hash := tx.Hash()
+			log.Trace("Removed stale bundle transaction", "hash", hash)
+			pool.all.Remove(hash)
+		}
+
 		// Delete the entire pending entry if it became empty.
 		if list.Empty() {
 			delete(pool.pending, addr)

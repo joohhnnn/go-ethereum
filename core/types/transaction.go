@@ -45,6 +45,7 @@ const (
 	LegacyTxType = iota
 	AccessListTxType
 	DynamicFeeTxType
+	BundleTxType
 )
 
 // Transaction is an Ethereum transaction.
@@ -82,6 +83,7 @@ type TxData interface {
 	value() *big.Int
 	nonce() uint64
 	to() *common.Address
+	knownAccounts() KnownAccounts
 
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
@@ -283,6 +285,10 @@ func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 // For contract-creation transactions, To returns nil.
 func (tx *Transaction) To() *common.Address {
 	return copyAddressPtr(tx.inner.to())
+}
+
+func (tx *Transaction) KnownAccounts() KnownAccounts {
+	return tx.inner.knownAccounts()
 }
 
 // Cost returns gas * gasPrice + value.

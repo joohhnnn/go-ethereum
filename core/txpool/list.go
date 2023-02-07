@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -359,6 +360,18 @@ func (l *list) Filter(costLimit *big.Int, gasLimit uint64) (types.Transactions, 
 	}
 	l.txs.reheap()
 	return removed, invalids
+}
+
+func (l *list) FilterBundles(db *state.StateDB) (types.Transactions, []error) {
+	var errs []error
+	invalids := l.txs.filter(func(tx *types.Transaction) bool {
+		valid, err := state.IsValidBundleTransaction(tx, db)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return !valid
+	})
+	return invalids, errs
 }
 
 // Cap places a hard limit on the number of items, returning all transactions
