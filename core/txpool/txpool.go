@@ -1548,9 +1548,21 @@ func (pool *TxPool) demoteUnexecutables() {
 			// Internal shuffle shouldn't touch the lookup set.
 			pool.enqueueTx(hash, tx, false, false)
 		}
-		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+		// Drop all transactions that no longer have valid TxOptions
+		txOptsDrops, errs := list.FilterTxOptions(pool.currentState)
+		if len(errs) != 0 {
+			for _, err := range errs {
+				log.Error("Cannot handle filtering of bundle transaction", "message", err)
+			}
+		}
+		for _, tx := range txOptsDrops {
+			hash := tx.Hash()
+			log.Trace("Removed stale transaction with tx options", "hash", hash)
+			pool.all.Remove(hash)
+		}
+		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(txOptsDrops)))
 		if pool.locals.contains(addr) {
-			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(txOptsDrops)))
 		}
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
@@ -1564,19 +1576,6 @@ func (pool *TxPool) demoteUnexecutables() {
 			}
 			pendingGauge.Dec(int64(len(gapped)))
 		}
-
-		bundleDrops, errs := list.FilterBundles(pool.currentState)
-		if len(errs) != 0 {
-			for _, err := range errs {
-				log.Error("Cannot handle filtering of bundle transaction", "message", err)
-			}
-		}
-		for _, tx := range bundleDrops {
-			hash := tx.Hash()
-			log.Trace("Removed stale bundle transaction", "hash", hash)
-			pool.all.Remove(hash)
-		}
-
 		// Delete the entire pending entry if it became empty.
 		if list.Empty() {
 			delete(pool.pending, addr)

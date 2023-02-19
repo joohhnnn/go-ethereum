@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package types_test
+package policy_test
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/policy"
 )
 
 func ptr(hash common.Hash) *common.Hash {
@@ -33,14 +33,14 @@ func TestKnownAccountJSONUnmarshal(t *testing.T) {
 	tests := []struct {
 		input    string
 		mustFail bool
-		expected types.KnownAccounts
+		expected policy.TxOptions
 	}{
 		0: {
 			`{"knownAccounts":{"0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0":"0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"}}`,
 			false,
-			types.KnownAccounts{
-				Accounts: map[common.Address]types.KnownAccount{
-					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): types.KnownAccount{
+			policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): policy.KnownAccount{
 						StorageRoot:  ptr(common.HexToHash("0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563")),
 						StorageSlots: make(map[common.Hash]common.Hash),
 					},
@@ -50,9 +50,9 @@ func TestKnownAccountJSONUnmarshal(t *testing.T) {
 		1: {
 			`{"knownAccounts":{"0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0":{"0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8":"0x0000000000000000000000000000000000000000000000000000000000000000"}}}`,
 			false,
-			types.KnownAccounts{
-				Accounts: map[common.Address]types.KnownAccount{
-					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): types.KnownAccount{
+			policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): policy.KnownAccount{
 						StorageRoot: nil,
 						StorageSlots: map[common.Hash]common.Hash{
 							common.HexToHash("0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8"): common.HexToHash("0x"),
@@ -64,21 +64,21 @@ func TestKnownAccountJSONUnmarshal(t *testing.T) {
 		2: {
 			`{"knownAccounts":{}}`,
 			false,
-			types.KnownAccounts{
-				Accounts: map[common.Address]types.KnownAccount{},
+			policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{},
 			},
 		},
 		3: {
 			`{"knownAccounts":{"":""}}`,
 			true,
-			types.KnownAccounts{
-				Accounts: map[common.Address]types.KnownAccount{},
+			policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{},
 			},
 		},
 	}
 
 	for i, test := range tests {
-		var ka types.KnownAccounts
+		var ka policy.TxOptions
 		err := json.Unmarshal([]byte(test.input), &ka)
 		if test.mustFail && err == nil {
 			t.Errorf("Test %d should fail", i)

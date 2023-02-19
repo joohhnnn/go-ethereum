@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/policy"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
@@ -1778,19 +1779,15 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	return SubmitTransaction(ctx, s.b, tx)
 }
 
-// SendRawTransactionConditional
-func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input hexutil.Bytes, knownAccounts types.KnownAccounts) (common.Hash, error) {
+// SendRawTransactionConditional will add the signed transaction to the transaction pool
+// with attached TxOptions.
+func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input hexutil.Bytes, txOptions policy.TxOptions) (common.Hash, error) {
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
-
-	bundleTx := types.NewTx(&types.BundleTx{
-		Inner:         tx,
-		KnownAccounts: knownAccounts,
-	})
-
-	return SubmitTransaction(ctx, s.b, bundleTx)
+	tx.SetTxOptions(&txOptions)
+	return SubmitTransaction(ctx, s.b, tx)
 }
 
 // Sign calculates an ECDSA signature for:

@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/policy"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -194,6 +195,36 @@ func (s *StateDB) setError(err error) {
 
 func (s *StateDB) Error() error {
 	return s.dbErr
+}
+
+// ValidateTxOptions will check the TxOptions against the current state.
+// A KnownAccount can hit either one of the root or slots branches or neither.
+func (s *StateDB) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
+	for addr, acct := range opts.KnownAccounts {
+		if root, isRoot := acct.Root(); isRoot {
+			storageTrie, err := s.StorageTrie(addr)
+			if err != nil {
+				return false, err
+			}
+			if storageTrie == nil {
+				if root != types.EmptyRootHash {
+					return false, nil
+				}
+			} else {
+				if storageTrie.Hash() != root {
+					return false, nil
+				}
+			}
+		}
+		if slots, isSlots := acct.Slots(); isSlots {
+			for key, value := range slots {
+				if value != s.GetState(addr, key) {
+					return false, nil
+				}
+			}
+		}
+	}
+	return true, nil
 }
 
 func (s *StateDB) AddLog(log *types.Log) {

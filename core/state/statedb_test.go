@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/policy"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -996,5 +997,229 @@ func TestStateDBTransientStorage(t *testing.T) {
 	cpy := state.Copy()
 	if got := cpy.GetTransientState(addr, key); got != value {
 		t.Fatalf("transient storage mismatch: have %x, want %x", got, value)
+	}
+}
+
+// TestStateDBValidateTxOptions tests validating TxOptions
+func TestStateDBValidateTxOptions(t *testing.T) {
+	// preAction represents an action played against the state before
+	// the test runs. The Account has the storage slots set.
+	type preAction struct {
+		Account common.Address
+		Slots   map[common.Hash]common.Hash
+	}
+
+	tests := []struct {
+		name       string
+		preActions []preAction
+		txOptions  *policy.TxOptions
+		valid      bool
+	}{
+		{
+			// Clean Prestate, no defined TxOptions
+			name:       "clean prestate",
+			preActions: []preAction{},
+			txOptions:  &policy.TxOptions{},
+			valid:      true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// TxOptions:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			name: "matching storage slots",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// TxOptions:
+			// - address(1)
+			//   - bytes32(0): bytes32(2)
+			name: "mismatched storage slots",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			// Clean Prestate
+			// TxOptions:
+			// - address(1)
+			//   - emptyRoot
+			name:       "matching storage root",
+			preActions: []preAction{},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageRoot: &types.EmptyRootHash,
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// TxOptions:
+			// - address(1)
+			//   - emptyRoot
+			name: "mismatched storage root",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageRoot: &types.EmptyRootHash,
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			// TxOptions:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			name: "multiple matching",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+				{
+					Account: common.Address{19: 2},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 2},
+					},
+				},
+			},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+					common.Address{19: 2}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(3)
+			// TxOptions:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			name: "multiple mismatch single",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+				{
+					Account: common.Address{19: 2},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 3},
+					},
+				},
+			},
+			txOptions: &policy.TxOptions{
+				KnownAccounts: map[common.Address]policy.KnownAccount{
+					common.Address{19: 1}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+					common.Address{19: 2}: policy.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			memDb := rawdb.NewMemoryDatabase()
+			db := NewDatabase(memDb)
+			state, _ := New(common.Hash{}, db, nil)
+			for _, action := range test.preActions {
+				for key, value := range action.Slots {
+					state.SetState(action.Account, key, value)
+				}
+			}
+			valid, err := state.ValidateTxOptions(test.txOptions)
+			if err != nil {
+				t.Fatalf("cannot validate TxOptions: %v", err)
+			}
+			if valid != test.valid {
+				t.Fatalf("TxOptions validation mismatch: have %t, want %t", valid, test.valid)
+			}
+		})
 	}
 }

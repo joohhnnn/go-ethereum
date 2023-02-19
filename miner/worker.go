@@ -898,16 +898,15 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 		if tx == nil {
 			break
 		}
-
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(env.signer, tx)
 
-		if tx.Type() == types.BundleTxType {
-			valid, _ := state.IsValidBundleTransaction(tx, env.state)
+		// If the user specified TxOptions, honor them when building a block.
+		if txOptions := tx.TxOptions(); txOptions != nil {
+			valid, _ := env.state.ValidateTxOptions(txOptions)
 			if !valid {
-				log.Trace("Skipping invalid bundle transaction", "sender", from, "hash", tx.Hash())
-
+				log.Trace("Skipping transaction with invalid options", "sender", from, "hash", tx.Hash())
 				txs.Pop()
 				continue
 			}
