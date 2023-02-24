@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/policy"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
@@ -340,5 +341,113 @@ func TestRlpDecodeParentHash(t *testing.T) {
 				t.Fatalf("invalid %d: have %x, want %x", i, have, want)
 			}
 		}
+	}
+}
+
+// TestHeaderValidateTxOptions tests the different validity
+// conditions of the TxOptions given a header.
+func TestHeaderValidateTxOptions(t *testing.T) {
+	u64Ptr := func(n uint64) *uint64 {
+		return &n
+	}
+
+	tests := []struct {
+		name     string
+		header   Header
+		opts     policy.TxOptions
+		expected bool
+	}{
+		{
+			"BlockNumberMaxFails",
+			Header{Number: big.NewInt(2)},
+			policy.TxOptions{BlockNumberMax: big.NewInt(1)},
+			false,
+		},
+		{
+			"BlockNumberMaxEqualSucceeds",
+			Header{Number: big.NewInt(2)},
+			policy.TxOptions{BlockNumberMax: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMaxSucceeds",
+			Header{Number: big.NewInt(1)},
+			policy.TxOptions{BlockNumberMax: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMinFails",
+			Header{Number: big.NewInt(1)},
+			policy.TxOptions{BlockNumberMin: big.NewInt(2)},
+			false,
+		},
+		{
+			"BlockNumberMinEqualSuccess",
+			Header{Number: big.NewInt(2)},
+			policy.TxOptions{BlockNumberMin: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMinSuccess",
+			Header{Number: big.NewInt(4)},
+			policy.TxOptions{BlockNumberMin: big.NewInt(3)},
+			true,
+		},
+		{
+			"BlockNumberRangeSucceeds",
+			Header{Number: big.NewInt(5)},
+			policy.TxOptions{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
+			true,
+		},
+		{
+			"BlockNumberRangeFails",
+			Header{Number: big.NewInt(15)},
+			policy.TxOptions{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
+			false,
+		},
+		{
+			"BlockTimestampMinFails",
+			Header{Time: 1},
+			policy.TxOptions{TimestampMin: u64Ptr(2)},
+			false,
+		},
+		{
+			"BlockTimestampMinSucceeds",
+			Header{Time: 2},
+			policy.TxOptions{TimestampMin: u64Ptr(1)},
+			true,
+		},
+		{
+			"BlockTimestampMinEqualSucceeds",
+			Header{Time: 1},
+			policy.TxOptions{TimestampMin: u64Ptr(1)},
+			true,
+		},
+		{
+			"BlockTimestampMaxFails",
+			Header{Time: 2},
+			policy.TxOptions{TimestampMax: u64Ptr(1)},
+			false,
+		},
+		{
+			"BlockTimestampMaxSucceeds",
+			Header{Time: 1},
+			policy.TxOptions{TimestampMax: u64Ptr(2)},
+			true,
+		},
+		{
+			"BlockTimestampMaxEqualSucceeds",
+			Header{Time: 2},
+			policy.TxOptions{TimestampMax: u64Ptr(2)},
+			true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if result := test.header.ValidateTxOptions(&test.opts); result != test.expected {
+				t.Errorf("Test %s got unexpected value, want %v, got %v", test.name, result, test.expected)
+			}
+		})
 	}
 }

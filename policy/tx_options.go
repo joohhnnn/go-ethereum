@@ -18,9 +18,19 @@ package policy
 
 import (
 	"encoding/json"
+	"errors"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
+
+var (
+	ErrLargeTxOptions   = errors.New("tx options too large")
+	ErrInvalidTxOptions = errors.New("invalid tx options")
+)
+
+//go:generate go run github.com/fjl/gencodec -type TxOptions -field-override txOptionsMarshaling -out gen_tx_options_json.go
 
 // TxOptions represent policy level user preferences. An honest block producer
 // should only include a transaction if all preferences are met. There is
@@ -28,19 +38,71 @@ import (
 type TxOptions struct {
 	// KnownAccounts represents a user's preference of a known prestate before
 	// their transaction is included.
-	KnownAccounts map[common.Address]KnownAccount `json:"knownAccounts"`
+	KnownAccounts KnownAccounts `json:"knownAccounts"`
+	// BlockNumberMin
+	BlockNumberMin *big.Int `json:"blockNumberMin,omitempty"`
+	// BlockNumberMax
+	BlockNumberMax *big.Int `json:"blockNumberMax,omitempty"`
+	// TimestampMin
+	TimestampMin *uint64 `json:"timestampMin,omitempty"`
+	// TimestampMax
+	TimestampMax *uint64 `json:"timestampMax,omitempty"`
+}
+
+// field type overrides for gencodec
+type txOptionsMarshaling struct {
+	BlockNumberMax *hexutil.Big
+	BlockNumberMin *hexutil.Big
+	TimestampMin   *hexutil.Uint64
+	TimestampMax   *hexutil.Uint64
+}
+
+// Cost computes the cost of validating the TxOptions. It will return
+// the number of storage lookups required by KnownAccounts.
+func (opts *TxOptions) Cost() int {
+	cost := 0
+	for _, account := range opts.KnownAccounts {
+		if _, isRoot := account.Root(); isRoot {
+			cost += 1
+		}
+		if slots, isSlots := account.Slots(); isSlots {
+			cost += len(slots)
+		}
+	}
+	if opts.BlockNumberMin != nil || opts.BlockNumberMax != nil {
+		cost += 1
+	}
+	if opts.TimestampMin != nil || opts.TimestampMax != nil {
+		cost += 1
+	}
+	return cost
 }
 
 // Copy will copy the TxOptions
-func (ka *TxOptions) Copy() TxOptions {
+func (opts *TxOptions) Copy() TxOptions {
 	cpy := TxOptions{
 		KnownAccounts: make(map[common.Address]KnownAccount),
 	}
-	for key, val := range ka.KnownAccounts {
+	for key, val := range opts.KnownAccounts {
 		cpy.KnownAccounts[key] = val.Copy()
+	}
+	if opts.BlockNumberMin != nil {
+		*cpy.BlockNumberMin = *opts.BlockNumberMin
+	}
+	if opts.BlockNumberMax != nil {
+		*cpy.BlockNumberMax = *opts.BlockNumberMax
+	}
+	if opts.TimestampMin != nil {
+		*cpy.TimestampMin = *opts.TimestampMin
+	}
+	if opts.TimestampMax != nil {
+		*cpy.TimestampMax = *opts.TimestampMax
 	}
 	return cpy
 }
+
+// KnownAccounts represents a set of knownAccounts
+type KnownAccounts map[common.Address]KnownAccount
 
 // KnownAccount allows for a user to express their preference of a known
 // prestate at a particular account. Only one of the storage root or
@@ -70,6 +132,14 @@ func (ka *KnownAccount) UnmarshalJSON(data []byte) error {
 	ka.StorageSlots = mapping
 
 	return nil
+}
+
+// MarshalJSON will serialize the KnownAccount into JSON bytes.
+func (ka *KnownAccount) MarshalJSON() ([]byte, error) {
+	if ka.StorageRoot != nil {
+		return json.Marshal(ka.StorageRoot)
+	}
+	return json.Marshal(ka.StorageSlots)
 }
 
 // Copy will copy the KnownAccount

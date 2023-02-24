@@ -18,6 +18,7 @@ package policy_test
 
 import (
 	"encoding/json"
+	"math/big"
 	"reflect"
 	"testing"
 
@@ -29,13 +30,21 @@ func ptr(hash common.Hash) *common.Hash {
 	return &hash
 }
 
-func TestKnownAccountJSONUnmarshal(t *testing.T) {
+func u64Ptr(v uint64) *uint64 {
+	return &v
+}
+
+// It is known that marshaling is broken
+// https://github.com/golang/go/issues/55890
+func TestTxPolicyJSONUnMarshalTrip(t *testing.T) {
 	tests := []struct {
+		name     string
 		input    string
 		mustFail bool
 		expected policy.TxOptions
 	}{
-		0: {
+		{
+			"StateRoot",
 			`{"knownAccounts":{"0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0":"0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563"}}`,
 			false,
 			policy.TxOptions{
@@ -47,7 +56,8 @@ func TestKnownAccountJSONUnmarshal(t *testing.T) {
 				},
 			},
 		},
-		1: {
+		{
+			"StorageSlots",
 			`{"knownAccounts":{"0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0":{"0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8":"0x0000000000000000000000000000000000000000000000000000000000000000"}}}`,
 			false,
 			policy.TxOptions{
@@ -61,36 +71,71 @@ func TestKnownAccountJSONUnmarshal(t *testing.T) {
 				},
 			},
 		},
-		2: {
+		{
+			"EmptyObject",
 			`{"knownAccounts":{}}`,
 			false,
 			policy.TxOptions{
-				KnownAccounts: map[common.Address]policy.KnownAccount{},
+				KnownAccounts: make(map[common.Address]policy.KnownAccount),
 			},
 		},
-		3: {
+		{
+			"EmptyStrings",
 			`{"knownAccounts":{"":""}}`,
 			true,
 			policy.TxOptions{
-				KnownAccounts: map[common.Address]policy.KnownAccount{},
+				KnownAccounts: nil,
+			},
+		},
+		{
+			"BlockNumberMin",
+			`{"blockNumberMin":"0x1"}`,
+			false,
+			policy.TxOptions{
+				BlockNumberMin: big.NewInt(1),
+			},
+		},
+		{
+			"BlockNumberMax",
+			`{"blockNumberMin":"0x1", "blockNumberMax":"0x2"}`,
+			false,
+			policy.TxOptions{
+				BlockNumberMin: big.NewInt(1),
+				BlockNumberMax: big.NewInt(2),
+			},
+		},
+		{
+			"TimestampMin",
+			`{"timestampMin":"0xffff"}`,
+			false,
+			policy.TxOptions{
+				TimestampMin: u64Ptr(uint64(0xffff)),
+			},
+		},
+		{
+			"TimestampMax",
+			`{"timestampMax":"0xffffff"}`,
+			false,
+			policy.TxOptions{
+				TimestampMax: u64Ptr(uint64(0xffffff)),
 			},
 		},
 	}
 
-	for i, test := range tests {
-		var ka policy.TxOptions
-		err := json.Unmarshal([]byte(test.input), &ka)
-		if test.mustFail && err == nil {
-			t.Errorf("Test %d should fail", i)
-			continue
-		}
-		if !test.mustFail && err != nil {
-			t.Errorf("Test %d should pass but got err: %v", i, err)
-			continue
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var opts policy.TxOptions
+			err := json.Unmarshal([]byte(test.input), &opts)
+			if test.mustFail && err == nil {
+				t.Errorf("Test %s should fail", test.name)
+			}
+			if !test.mustFail && err != nil {
+				t.Errorf("Test %s should pass but got err: %v", test.name, err)
+			}
 
-		if !reflect.DeepEqual(ka, test.expected) {
-			t.Errorf("Test %d got unexpected value, want %d, got %d", i, test.expected, ka)
-		}
+			if !reflect.DeepEqual(opts, test.expected) {
+				t.Errorf("Test %s got unexpected value, want %#v, got %#v", test.name, test.expected, opts)
+			}
+		})
 	}
 }
