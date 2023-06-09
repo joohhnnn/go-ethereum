@@ -257,11 +257,11 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return consensus.ErrInvalidNumber
 	}
 	// Verify the header's EIP-1559 attributes.
-	if err := misc.VerifyEip1559Header(chain.Config(), parent, header); err != nil {
+	if err := misc.VerifyEIP1559Header(chain.Config(), parent, header); err != nil {
 		return err
 	}
 	// Verify existence / non-existence of withdrawalsHash.
-	shanghai := chain.Config().IsShanghai(header.Time)
+	shanghai := chain.Config().IsShanghai(header.Number, header.Time)
 	if shanghai && header.WithdrawalsHash == nil {
 		return errors.New("missing withdrawalsHash")
 	}
@@ -269,12 +269,17 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return fmt.Errorf("invalid withdrawalsHash: have %x, expected nil", header.WithdrawalsHash)
 	}
 	// Verify the existence / non-existence of excessDataGas
-	cancun := chain.Config().IsCancun(header.Time)
-	if cancun && header.ExcessDataGas == nil {
-		return errors.New("missing excessDataGas")
-	}
+	cancun := chain.Config().IsCancun(header.Number, header.Time)
 	if !cancun && header.ExcessDataGas != nil {
 		return fmt.Errorf("invalid excessDataGas: have %d, expected nil", header.ExcessDataGas)
+	}
+	if !cancun && header.DataGasUsed != nil {
+		return fmt.Errorf("invalid dataGasUsed: have %d, expected nil", header.DataGasUsed)
+	}
+	if cancun {
+		if err := misc.VerifyEIP4844Header(parent, header); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -356,7 +361,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	if !beacon.IsPoSHeader(header) {
 		return beacon.ethone.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts, nil)
 	}
-	shanghai := chain.Config().IsShanghai(header.Time)
+	shanghai := chain.Config().IsShanghai(header.Number, header.Time)
 	if shanghai {
 		// All blocks after Shanghai must include a withdrawals root.
 		if withdrawals == nil {
