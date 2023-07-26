@@ -445,7 +445,7 @@ func TestHeaderValidateTxOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if result := test.header.ValidateTxOptions(&test.opts); result != test.expected {
+			if result, _ := test.header.ValidateTxOptions(&test.opts); result != test.expected {
 				t.Errorf("Test %s got unexpected value, want %v, got %v", test.name, result, test.expected)
 			}
 		})

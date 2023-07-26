@@ -904,7 +904,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 
 		// If the user specified TxOptions, honor them when building a block.
 		if txOptions := tx.TxOptions(); txOptions != nil {
-			if valid := env.header.ValidateTxOptions(txOptions); !valid {
+			if valid, _ := env.header.ValidateTxOptions(txOptions); !valid {
 				log.Trace("Skipping transaction with invalid environment options", "sender", from, "hash", tx.Hash())
 				txs.Pop()
 				continue

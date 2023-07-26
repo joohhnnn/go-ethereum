@@ -167,28 +167,28 @@ func (h *Header) EmptyReceipts() bool {
 }
 
 // ValidateTxOptions will validate the TxOptions against a header.
-func (h *Header) ValidateTxOptions(opts *policy.TxOptions) bool {
+func (h *Header) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 	if opts.BlockNumberMin != nil {
 		if h.Number.Cmp(opts.BlockNumberMin) < 0 {
-			return false
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("BlockNumber is less than the BlockNumberMin"))
 		}
 	}
 	if opts.BlockNumberMax != nil {
 		if h.Number.Cmp(opts.BlockNumberMax) > 0 {
-			return false
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("BlockNumber is greater than the BlockNumberMax"))
 		}
 	}
 	if opts.TimestampMin != nil {
 		if h.Time < uint64(*opts.TimestampMin) {
-			return false
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Timestamp is less than the TimestampMin"))
 		}
 	}
 	if opts.TimestampMax != nil {
 		if h.Time > uint64(*opts.TimestampMax) {
-			return false
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Timestamp is greater than the TimestampMax"))
 		}
 	}
-	return true
+	return true, nil
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving

@@ -208,18 +208,20 @@ func (s *StateDB) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 			}
 			if storageTrie == nil {
 				if root != types.EmptyRootHash {
-					return false, nil
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root not match, account: %v want: %v get: %v", addr, root, nil))
 				}
 			} else {
-				if storageTrie.Hash() != root {
-					return false, nil
+				realRoot := storageTrie.Hash()
+				if realRoot != root {
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root not match, account: %v want: %v get: %v", addr, root, realRoot))
 				}
 			}
 		}
 		if slots, isSlots := acct.Slots(); isSlots {
 			for key, value := range slots {
-				if value != s.GetState(addr, key) {
-					return false, nil
+				realValue := s.GetState(addr, key)
+				if value != realValue {
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("slot not match, account: %v key: %v want: %v get: %v", addr, key, value, realValue))
 				}
 			}
 		}

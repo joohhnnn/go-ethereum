@@ -1793,15 +1793,20 @@ func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input
 		return common.Hash{}, err
 	}
 
-	if valid := header.ValidateTxOptions(&txOptions); !valid {
+
+	valid, err := header.ValidateTxOptions(&txOptions)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("%w: environment options", err)
+	}
+	if !valid {
 		return common.Hash{}, fmt.Errorf("%w: environment options", policy.ErrInvalidTxOptions)
 	}
 
-	valid, err := state.ValidateTxOptions(&txOptions)
+	valid, err = state.ValidateTxOptions(&txOptions)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("%w: state options", policy.ErrInvalidTxOptions)
+		return common.Hash{}, fmt.Errorf("%w: state options", err)
 	}
-	if valid == false {
+	if !valid {
 		return common.Hash{}, fmt.Errorf("%w: state options", policy.ErrInvalidTxOptions)
 	}
 
