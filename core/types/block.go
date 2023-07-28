@@ -170,22 +170,22 @@ func (h *Header) EmptyReceipts() bool {
 func (h *Header) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 	if opts.BlockNumberMin != nil {
 		if h.Number.Cmp(opts.BlockNumberMin) < 0 {
-			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("BlockNumber is less than the BlockNumberMin"))
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Desired minimum block number: %v, Current block number: %v.", opts.BlockNumberMin, h.Number))
 		}
 	}
 	if opts.BlockNumberMax != nil {
 		if h.Number.Cmp(opts.BlockNumberMax) > 0 {
-			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("BlockNumber is greater than the BlockNumberMax"))
+			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Desired maximum block number: %v, Current block number: %v.", opts.BlockNumberMax, h.Number))
 		}
 	}
 	if opts.TimestampMin != nil {
 		if h.Time < uint64(*opts.TimestampMin) {
-			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Timestamp is less than the TimestampMin"))
+			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Desired minimum Timestamp: %v, Current Timestamp: %v.", opts.TimestampMin, h.Time))
 		}
 	}
 	if opts.TimestampMax != nil {
 		if h.Time > uint64(*opts.TimestampMax) {
-			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Timestamp is greater than the TimestampMax"))
+			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Desired maximum Timestamp: %v, Current Timestamp: %v.", opts.TimestampMax, h.Time))
 		}
 	}
 	return true, nil
