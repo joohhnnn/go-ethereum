@@ -1796,7 +1796,7 @@ func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input
 
 	valid, err := header.ValidateTxOptions(&txOptions)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("%w: environment options", err)
+		return common.Hash{}, err
 	}
 	if !valid {
 		return common.Hash{}, fmt.Errorf("%w: environment options", policy.ErrInvalidTxOptions)
@@ -1804,7 +1804,7 @@ func (s TransactionAPI) SendRawTransactionConditional(ctx context.Context, input
 
 	valid, err = state.ValidateTxOptions(&txOptions)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("%w: state options", err)
+		return common.Hash{}, err
 	}
 	if !valid {
 		return common.Hash{}, fmt.Errorf("%w: state options", policy.ErrInvalidTxOptions)

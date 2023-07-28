@@ -180,12 +180,12 @@ func (h *Header) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 	}
 	if opts.TimestampMin != nil {
 		if h.Time < uint64(*opts.TimestampMin) {
-			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Timestamp is less than the TimestampMin"))
+			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Timestamp is less than the TimestampMin"))
 		}
 	}
 	if opts.TimestampMax != nil {
 		if h.Time > uint64(*opts.TimestampMax) {
-			return false, policy.OutOfBlockNumberRange.With(fmt.Errorf("Timestamp is greater than the TimestampMax"))
+			return false, policy.OutOfTimestampRange.With(fmt.Errorf("Timestamp is greater than the TimestampMax"))
 		}
 	}
 	return true, nil
