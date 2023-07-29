@@ -5383,6 +5383,13 @@ var methods = function () {
         inputFormatter: [null]
     });
 
+    var sendRawTransactionConditional = new Method({
+        name: 'sendRawTransactionConditional',
+        call: 'eth_sendRawTransactionConditional',
+        params: 2,
+        inputFormatter: [null, null]
+    });
+
     var sendTransaction = new Method({
         name: 'sendTransaction',
         call: 'eth_sendTransaction',
@@ -5465,6 +5472,7 @@ var methods = function () {
         call,
         estimateGas,
         sendRawTransaction,
+        sendRawTransactionConditional,
         signTransaction,
         sendTransaction,
         sign,
