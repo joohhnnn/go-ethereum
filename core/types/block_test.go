@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"hash"
 	"math/big"
 	"reflect"
@@ -356,96 +357,122 @@ func TestHeaderValidateTxOptions(t *testing.T) {
 		header   Header
 		opts     policy.TxOptions
 		expected bool
+		err      *policy.TxOptionsError
 	}{
 		{
 			"BlockNumberMaxFails",
 			Header{Number: big.NewInt(2)},
 			policy.TxOptions{BlockNumberMax: big.NewInt(1)},
 			false,
+			policy.OutOfBlockNumberRange.With(fmt.Errorf("Desired maximum block number: 1, Current block number: 2")),
 		},
 		{
 			"BlockNumberMaxEqualSucceeds",
 			Header{Number: big.NewInt(2)},
 			policy.TxOptions{BlockNumberMax: big.NewInt(2)},
 			true,
+			nil,
 		},
 		{
 			"BlockNumberMaxSucceeds",
 			Header{Number: big.NewInt(1)},
 			policy.TxOptions{BlockNumberMax: big.NewInt(2)},
 			true,
+			nil,
 		},
 		{
 			"BlockNumberMinFails",
 			Header{Number: big.NewInt(1)},
 			policy.TxOptions{BlockNumberMin: big.NewInt(2)},
 			false,
+			policy.OutOfBlockNumberRange.With(fmt.Errorf("Desired minimum block number: 2, Current block number: 1")),
 		},
 		{
 			"BlockNumberMinEqualSuccess",
 			Header{Number: big.NewInt(2)},
 			policy.TxOptions{BlockNumberMin: big.NewInt(2)},
 			true,
+			nil,
 		},
 		{
 			"BlockNumberMinSuccess",
 			Header{Number: big.NewInt(4)},
 			policy.TxOptions{BlockNumberMin: big.NewInt(3)},
 			true,
+			nil,
 		},
 		{
 			"BlockNumberRangeSucceeds",
 			Header{Number: big.NewInt(5)},
 			policy.TxOptions{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
 			true,
+			nil,
 		},
 		{
 			"BlockNumberRangeFails",
 			Header{Number: big.NewInt(15)},
 			policy.TxOptions{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
 			false,
+			policy.OutOfBlockNumberRange.With(fmt.Errorf("Desired maximum block number: 10, Current block number: 15")),
 		},
 		{
 			"BlockTimestampMinFails",
 			Header{Time: 1},
 			policy.TxOptions{TimestampMin: u64Ptr(2)},
 			false,
+			policy.OutOfTimestampRange.With(fmt.Errorf("Desired minimum timestamp: 2, Current timestamp: 1")),
 		},
 		{
 			"BlockTimestampMinSucceeds",
 			Header{Time: 2},
 			policy.TxOptions{TimestampMin: u64Ptr(1)},
 			true,
+			nil,
 		},
 		{
 			"BlockTimestampMinEqualSucceeds",
 			Header{Time: 1},
 			policy.TxOptions{TimestampMin: u64Ptr(1)},
 			true,
+			nil,
 		},
 		{
 			"BlockTimestampMaxFails",
 			Header{Time: 2},
 			policy.TxOptions{TimestampMax: u64Ptr(1)},
 			false,
+			policy.OutOfTimestampRange.With(fmt.Errorf("Desired maximum timestamp: 1, Current timestamp: 2")),
 		},
 		{
 			"BlockTimestampMaxSucceeds",
 			Header{Time: 1},
 			policy.TxOptions{TimestampMax: u64Ptr(2)},
 			true,
+			nil,
 		},
 		{
 			"BlockTimestampMaxEqualSucceeds",
 			Header{Time: 2},
 			policy.TxOptions{TimestampMax: u64Ptr(2)},
 			true,
+			nil,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if result, _ := test.header.ValidateTxOptions(&test.opts); result != test.expected {
+			result, err := test.header.ValidateTxOptions(&test.opts)
+			if err != nil {
+				txOptionsError, ok := err.(*policy.TxOptionsError)
+				if ok && test.err != nil {
+					if !reflect.DeepEqual(txOptionsError, test.err){
+						t.Fatalf("cannot validate TxOptions, have : errorCode: %v, errorMessage: %v, errorData: %v. want: errorCode: %v, errorMessage: %v, errorData: %v", txOptionsError.ErrorCode(), txOptionsError.Error(), txOptionsError.ErrorData(), test.err.ErrorCode(), test.err.Error(), test.err.ErrorData())
+					}					
+				} else {
+					t.Fatalf("cannot validate TxOptions: %v", err)
+				}
+			}
+			if result != test.expected {
 				t.Errorf("Test %s got unexpected value, want %v, got %v", test.name, result, test.expected)
 			}
 		})

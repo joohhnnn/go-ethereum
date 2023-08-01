@@ -57,5 +57,5 @@ var (
 	//TODO: confirm whether the code should be the same.
 	OutOfTimestampRange   = &TxOptionsError{code: -32503, msg: "Out of timestamp range"}
 	OutOfBlockNumberRange = &TxOptionsError{code: -32503, msg: "Out of blockNumber range"}
-	KnownAccountsNotMatch = &TxOptionsError{code: -32503, msg: "knownAccounts is not match"}
+	KnownAccountsNotMatch = &TxOptionsError{code: -32503, msg: "knownAccounts mismatch"}
 )

@@ -208,12 +208,12 @@ func (s *StateDB) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 			}
 			if storageTrie == nil {
 				if root != types.EmptyRootHash {
-					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root not match, account: %v want: %v get: %v", addr, root, nil))
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root mismatch, account: %v want: %v get: %v", addr, root, nil))
 				}
 			} else {
 				realRoot := storageTrie.Hash()
 				if realRoot != root {
-					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root not match, account: %v want: %v get: %v", addr, root, realRoot))
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("root mismatch, account: %v want: %v get: %v", addr, root, realRoot))
 				}
 			}
 		}
@@ -221,7 +221,7 @@ func (s *StateDB) ValidateTxOptions(opts *policy.TxOptions) (bool, error) {
 			for key, value := range slots {
 				realValue := s.GetState(addr, key)
 				if value != realValue {
-					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("slot not match, account: %v key: %v want: %v get: %v", addr, key, value, realValue))
+					return false, policy.KnownAccountsNotMatch.With(fmt.Errorf("slot mismatch, account: %v key: %v want: %v get: %v", addr, key, value, realValue))
 				}
 			}
 		}

@@ -1014,6 +1014,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 		preActions []preAction
 		txOptions  *policy.TxOptions
 		valid      bool
+		err        *policy.TxOptionsError
 	}{
 		{
 			// Clean Prestate, no defined TxOptions
@@ -1075,6 +1076,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: false,
+			err: policy.KnownAccountsNotMatch.With(fmt.Errorf("slot mismatch, account: 0x0000000000000000000000000000000000000001 key: 0x0000000000000000000000000000000000000000000000000000000000000000 want: 0x0000000000000000000000000000000000000000000000000000000000000002 get: 0x0000000000000000000000000000000000000000000000000000000000000001")),
 		},
 		{
 			// Clean Prestate
@@ -1116,6 +1118,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: false,
+			err: policy.KnownAccountsNotMatch.With(fmt.Errorf("root mismatch, account: 0x0000000000000000000000000000000000000001 want: 0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421 get: 0x821e2556a290c86405f8160a2d662042a431ba456b9db265c79bb837c04be5f0")),
 		},
 		{
 			// Prestate:
@@ -1200,6 +1203,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: false,
+			err: policy.KnownAccountsNotMatch.With(fmt.Errorf("slot mismatch, account: 0x0000000000000000000000000000000000000002 key: 0x0000000000000000000000000000000000000000000000000000000000000000 want: 0x0000000000000000000000000000000000000000000000000000000000000002 get: 0x0000000000000000000000000000000000000000000000000000000000000003")),
 		},
 	}
 
@@ -1215,7 +1219,14 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 			}
 			valid, err := state.ValidateTxOptions(test.txOptions)
 			if err != nil {
-				t.Fatalf("cannot validate TxOptions: %v", err)
+				txOptionsError, ok := err.(*policy.TxOptionsError)
+				if ok && test.err != nil {
+					if !reflect.DeepEqual(txOptionsError, test.err){
+						t.Fatalf("cannot validate TxOptions, have : errorCode: %v, errorMessage: %v, errorData: %v. want: errorCode: %v, errorMessage: %v, errorData: %v", txOptionsError.ErrorCode(), txOptionsError.Error(), txOptionsError.ErrorData(), test.err.ErrorCode(), test.err.Error(), test.err.ErrorData())
+					}					
+				} else {
+					t.Fatalf("cannot validate TxOptions: %v", err)
+				}
 			}
 			if valid != test.valid {
 				t.Fatalf("TxOptions validation mismatch: have %t, want %t", valid, test.valid)
