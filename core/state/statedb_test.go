@@ -1014,6 +1014,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 		preActions []preAction
 		txOptions  *policy.TxOptions
 		valid      bool
+		err        policy.TxOptionsError
 	}{
 		{
 			// Clean Prestate, no defined TxOptions
@@ -1075,6 +1076,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: false,
+			err: policy.TxOptionsError{},
 		},
 		{
 			// Clean Prestate
@@ -1091,6 +1093,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: true,
+			err: nil,
 		},
 		{
 			// Prestate:
@@ -1158,6 +1161,7 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				},
 			},
 			valid: true,
+			err: nil,
 		},
 		{
 			// Prestate:
@@ -1214,8 +1218,15 @@ func TestStateDBValidateTxOptions(t *testing.T) {
 				}
 			}
 			valid, err := state.ValidateTxOptions(test.txOptions)
-			if err != nil {
-				t.Fatalf("cannot validate TxOptions: %v", err)
+			if err != nil{
+				if txOptionsError, ok := err.(*policy.TxOptionsError); ok {
+					if txOptionsError.ErrorCode() != test.err.Error(){
+						t.Fatalf("cannot validate TxOptions, errorCode: %v, errorMessage: %v, errorData: %v", txOptionsError.ErrorCode(), txOptionsError.Error(), txOptionsError.ErrorData())
+					}
+					
+				} else {
+					t.Fatalf("cannot validate TxOptions: %v", err)
+				}
 			}
 			if valid != test.valid {
 				t.Fatalf("TxOptions validation mismatch: have %t, want %t", valid, test.valid)
