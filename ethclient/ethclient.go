@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/policy"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -560,6 +561,14 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 		return err
 	}
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
+}
+
+// SendTransaction injects a signed transaction into the pending pool for execution.
+//
+// If the transaction was a contract creation use the TransactionReceipt method to get the
+// contract address after the transaction has been mined.
+func (ec *Client) SendRawTransactionConditional(ctx context.Context, input hexutil.Bytes, txOptions policy.TxOptions) error {
+	return ec.c.CallContext(ctx, nil, "eth_sendRawTransactionConditional", input, txOptions)
 }
 
 func toBlockNumArg(number *big.Int) string {
